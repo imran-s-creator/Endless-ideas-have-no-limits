@@ -2,7 +2,7 @@ import './App.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from './auth/useAuth.js'
-import { isSupabaseConfigured, loadBuyerPurchases, loadCreatorCounts, loadIdeaStatuses, purchaseIdea } from './lib/supabase.js'
+import { createIdea, createOffer, loadBuyerPurchases, loadCreatorCounts, loadCreatorIdeas, loadIdeaBySlug, loadIdeas, loadLicenses, loadMessages, loadOffers, loadProfiles, loadProtectedIdea, loadSavedIdeas, loadTransactions, purchaseIdea, sendMessage, updateOfferStatus } from './lib/supabase.js'
 
 const navItems = [
   { label: 'Explore', to: '/explore' },
@@ -59,18 +59,21 @@ const ideaListings = [
 ]
 
 function useMarketplaceIdeas() {
-  const [ideas, setIdeas] = useState(ideaListings)
+  const [ideas, setIdeas] = useState([])
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return undefined
     let mounted = true
-    loadIdeaStatuses().then(({ data }) => {
+    loadIdeas().then(({ data }) => {
       if (!mounted || !data) return
-      const statuses = new Map(data.map((item) => [item.slug, item]))
-      setIdeas(ideaListings.map((idea) => {
-        const status = statuses.get(idea.id)
-        return { ...idea, dbId: status?.id, status: status?.status ?? 'available', sold_at: status?.sold_at, allows_transfer_resale: status?.allows_transfer_resale ?? false, rights_type: status?.rights_type }
-      }))
+      setIdeas(data.map((idea) => ({
+        ...idea,
+        creator: idea.profiles?.name ?? 'ENDLESS creator',
+        initials: (idea.profiles?.name ?? 'EC').slice(0, 2).toUpperCase(),
+        price: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(idea.asking_price),
+        interest: `${idea.saves ?? 0} saves`,
+        views: `${idea.views ?? 0} views`,
+        rights_type: idea.purchase_type,
+      })))
     })
     return () => { mounted = false }
   }, [])
@@ -80,6 +83,21 @@ function useMarketplaceIdeas() {
 
 function IdeaStatusBadge({ idea }) {
   return idea.status === 'sold' ? <span className="state-badge sold-badge">SOLD</span> : <span className="stage-pill">{idea.stage}</span>
+}
+
+function SaveIdeaButton({ idea }) {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [saved, setSaved] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const handleSave = async () => {
+    if (!user) return navigate(`/login?redirect=${encodeURIComponent(`/idea/${idea.slug ?? idea.id}`)}`)
+    setIsSaving(true)
+    const result = await toggleSavedIdea(user.id, idea.id, saved)
+    setIsSaving(false)
+    if (!result.error) setSaved((current) => !current)
+  }
+  return <button type="button" className="save-button" onClick={handleSave} disabled={isSaving}>{saved ? 'Saved' : 'Save'}</button>
 }
 
 function ideaPrice(idea) {
@@ -145,7 +163,7 @@ const detailMetrics = [
 
 const rights = ['Full Ownership', 'Exclusive License', 'Non-Exclusive License', 'Transferable Rights']
 
-const messages = [
+const _messages = [
   { from: 'company', text: 'We’re interested in understanding the target customer segment.' },
   { from: 'creator', text: 'I can provide additional information through the protected details request.' },
 ]
@@ -597,7 +615,7 @@ export function LegacyHomePage() {
                         <span className="meta-line">{idea.category}</span>
                       </div>
                     </div>
-                    <button type="button" className="save-button">Save</button>
+                    <SaveIdeaButton idea={idea} />
                   </div>
 
                   <h3>{idea.title}</h3>
@@ -972,7 +990,7 @@ function ExplorePage() {
                     <span className="meta-line">{idea.category}</span>
                   </div>
                 </div>
-                <button type="button" className="save-button">Save</button>
+                <SaveIdeaButton idea={idea} />
               </div>
               <h3>{idea.title}</h3>
               <div className="idea-bottom">
@@ -1013,7 +1031,7 @@ function CategoryPage() {
     <main className="page-shell">
       <section className="page-hero category-hero"><Link to="/explore" className="back-link">← All categories</Link><div className="eyebrow">Category / {name}</div><h1>{name}</h1><p>{description}</p><span className="category-count">{count} ideas in this category</span></section>
       <section className="category-subcategories"><div className="eyebrow">Subcategories</div><div className="subcategory-list">{subcategories.map((subcategory) => <button type="button" key={subcategory}>{subcategory}</button>)}</div></section>
-      <section className="content-card listing-panel"><div className="section-heading"><div><div className="eyebrow">Latest in {name}</div><h2>Ideas to explore.</h2></div><Link to="/explore" className="secondary-button small">All ideas</Link></div><div className="idea-grid compact-grid">{(matchingIdeas.length ? matchingIdeas : ideaListings.slice(0, 3)).map((idea) => <article className="idea-card" key={idea.id}><div className="idea-top"><div className="creator-wrap"><div className="avatar">{idea.initials}</div><div><span className="creator-name">{idea.creator}</span><span className="meta-line">{idea.category}</span></div></div><button type="button" className="save-button">Save</button></div><h3>{idea.title}</h3><p className="idea-summary">{description}</p><div className="idea-footer"><span className="stage-pill">{idea.stage}</span><Link to={`/idea/${idea.id}`} className="secondary-button small">View Idea</Link></div></article>)}</div></section>
+      <section className="content-card listing-panel"><div className="section-heading"><div><div className="eyebrow">Latest in {name}</div><h2>Ideas to explore.</h2></div><Link to="/explore" className="secondary-button small">All ideas</Link></div><div className="idea-grid compact-grid">{matchingIdeas.map((idea) => <article className="idea-card" key={idea.id}><div className="idea-top"><div className="creator-wrap"><div className="avatar">{idea.initials}</div><div><span className="creator-name">{idea.creator}</span><span className="meta-line">{idea.category}</span></div></div><SaveIdeaButton idea={idea} /></div><h3>{idea.title}</h3><p className="idea-summary">{idea.teaser || description}</p><div className="idea-footer"><span className="stage-pill">{idea.stage}</span><Link to={`/idea/${idea.slug}`} className="secondary-button small">View Idea</Link></div></article>)}{!matchingIdeas.length && <div className="empty-state"><strong>No ideas in this category yet.</strong><Link to="/explore" className="secondary-button small">Browse all ideas</Link></div>}</div></section>
     </main>
   )
 }
@@ -1022,31 +1040,56 @@ function IdeaDetailPage() {
   const marketplaceIdeas = useMarketplaceIdeas()
   const { user, isAuthenticated } = useAuth()
   const { id } = useParams()
+  const [loadedIdea, setLoadedIdea] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [isPurchasing, setIsPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
   const [purchased, setPurchased] = useState(false)
   const [isCurrentOwner, setIsCurrentOwner] = useState(false)
-  const idea = marketplaceIdeas.find((item) => item.id === id) ?? ideaListings[1]
-  const isSold = idea.status === 'sold' || purchased
+  const idea = loadedIdea ?? marketplaceIdeas.find((item) => item.slug === id || item.id === id)
+  const isSold = idea?.status === 'sold' || purchased
+
+  useEffect(() => {
+    let mounted = true
+    setIsLoading(true)
+    setLoadError('')
+    loadIdeaBySlug(id).then(async ({ data, error }) => {
+      if (!mounted) return
+      if (error || !data) {
+        setLoadError(error?.message ?? 'This idea could not be found.')
+        setIsLoading(false)
+        return
+      }
+      let nextIdea = data
+      if (isAuthenticated) {
+        const protectedResult = await loadProtectedIdea(data.id)
+        if (protectedResult.data) nextIdea = { ...data, ...protectedResult.data }
+      }
+      setLoadedIdea({ ...nextIdea, creator: nextIdea.profiles?.name ?? 'ENDLESS creator', initials: (nextIdea.profiles?.name ?? 'EC').slice(0, 2).toUpperCase(), price: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(nextIdea.asking_price), rights_type: nextIdea.purchase_type })
+      setIsLoading(false)
+    })
+    return () => { mounted = false }
+  }, [id, isAuthenticated])
 
   useEffect(() => {
     if (!isSold || !user?.id) return undefined
     let mounted = true
     loadBuyerPurchases(user.id).then(({ data }) => {
-      if (mounted) setIsCurrentOwner((data ?? []).some((purchase) => purchase.ideas?.slug === idea.id))
+      if (mounted) setIsCurrentOwner((data ?? []).some((purchase) => purchase.idea_id === idea.id))
     })
     return () => { mounted = false }
   }, [idea.id, isSold, user?.id])
 
   const handlePurchase = async () => {
     if (!isAuthenticated) return
-    if (!idea.dbId) {
+    if (!idea.id) {
       setPurchaseError('This listing is not connected to the marketplace database yet.')
       return
     }
     setPurchaseError('')
     setIsPurchasing(true)
-    const result = await purchaseIdea(idea.dbId)
+    const result = await purchaseIdea(idea.id)
     setIsPurchasing(false)
     if (result.alreadySold) {
       setPurchased(true)
@@ -1058,6 +1101,9 @@ function IdeaDetailPage() {
     }
     setPurchased(true)
   }
+
+  if (isLoading) return <main className="auth-state" aria-live="polite">Loading idea…</main>
+  if (loadError || !idea) return <main className="page-shell"><section className="content-card empty-state"><strong>{loadError || 'This idea could not be found.'}</strong><Link to="/explore" className="secondary-button">Back to Explore</Link></section></main>
 
   return (
     <main className="page-shell">
@@ -1154,6 +1200,36 @@ function IdeaDetailPage() {
 }
 
 function SubmitPage() {
+  const { user } = useAuth()
+  const [status, setStatus] = useState({ type: '', message: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setStatus({ type: '', message: '' })
+    const form = new FormData(event.currentTarget)
+    const title = String(form.get('title') ?? '').trim()
+    if (!title) return setStatus({ type: 'error', message: 'Add a title before publishing.' })
+    setIsSubmitting(true)
+    const result = await createIdea({
+      creator_id: user.id,
+      slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now()}`,
+      title,
+      teaser: String(form.get('teaser') ?? '').trim(),
+      public_description: String(form.get('teaser') ?? '').trim(),
+      protected_details: String(form.get('protected_details') ?? '').trim(),
+      category: String(form.get('category') ?? ''),
+      industry: String(form.get('industry') ?? ''),
+      stage: String(form.get('stage') ?? 'Concept'),
+      asking_price: Number(form.get('asking_price') ?? 0),
+      purchase_type: String(form.get('purchase_type') ?? 'Full Ownership'),
+    })
+    setIsSubmitting(false)
+    if (result.error) return setStatus({ type: 'error', message: result.error.message })
+    event.currentTarget.reset()
+    setStatus({ type: 'success', message: 'Your idea has been published.' })
+  }
+
   return (
     <main className="page-shell">
       <section className="page-hero narrow-hero">
@@ -1181,14 +1257,15 @@ function SubmitPage() {
           </div>
         </div>
 
-        <div className="form-grid">
+        {status.message && <div className={status.type === 'error' ? 'form-error' : 'form-success'} role="status">{status.message}</div>}
+        <form id="submit-idea-form" className="form-grid" onSubmit={handleSubmit}>
           <label>
             <span>Idea title</span>
-            <input type="text" defaultValue="Inventory Assistant for Small Retail Stores" />
+            <input name="title" type="text" placeholder="Name the idea" required />
           </label>
           <label>
             <span>Main category</span>
-            <select defaultValue="retail">{categories.map(([slug, name]) => <option value={slug} key={slug}>{name}</option>)}</select>
+            <select name="category" defaultValue="retail">{categories.map(([slug, name]) => <option value={name} key={slug}>{name}</option>)}</select>
           </label>
           <label>
             <span>Subcategory</span>
@@ -1196,21 +1273,33 @@ function SubmitPage() {
           </label>
           <label>
             <span>Industry</span>
-            <select defaultValue="Retail"><option>Retail</option><option>Education</option><option>Healthcare</option><option>Food & Restaurants</option><option>Fashion</option><option>Business</option></select>
+            <select name="industry" defaultValue="Retail"><option>Retail</option><option>Education</option><option>Healthcare</option><option>Food & Restaurants</option><option>Fashion</option><option>Business</option></select>
+          </label>
+          <label>
+            <span>Idea stage</span>
+            <select name="stage" defaultValue="Concept"><option>Concept</option><option>Prototype</option><option>Early Validation</option><option>Launch Ready</option></select>
+          </label>
+          <label>
+            <span>Asking price</span>
+            <input name="asking_price" type="number" min="0" step="1" placeholder="0" required />
+          </label>
+          <label>
+            <span>Purchase type</span>
+            <select name="purchase_type" defaultValue="Full Ownership"><option>Full Ownership</option><option>Exclusive License</option><option>Non-Exclusive License</option><option>Transferable Rights</option></select>
           </label>
           <label className="full-width">
             <span>Short summary</span>
-            <textarea defaultValue="A lightweight operating assistant that helps retailers manage inventory, reduce stockouts, and improve ordering decisions." rows="4" />
+            <textarea name="teaser" rows="4" required />
           </label>
           <label className="full-width">
             <span>Protected details</span>
-            <textarea defaultValue="This section includes operational notes, user workflows, product assumptions, and implementation detail visible only after purchase or approved access." rows="4" />
+            <textarea name="protected_details" rows="4" required />
           </label>
-        </div>
+        </form>
 
         <div className="form-actions">
-          <button type="button" className="secondary-button">Save Draft</button>
-          <button type="button" className="primary-button">Publish Listing</button>
+          <button type="button" className="secondary-button" onClick={() => setStatus({ type: 'success', message: 'Drafts are not enabled yet.' })}>Save Draft</button>
+          <button type="submit" form="submit-idea-form" className="primary-button" disabled={isSubmitting}>{isSubmitting ? 'Publishing…' : 'Publish Listing'}</button>
         </div>
         <p className="form-privacy-note">By submitting an idea, you understand that the information you provide is used to create and manage your listing. Read the <Link to="/privacy">Privacy Policy</Link>.</p>
       </section>
@@ -1325,11 +1414,22 @@ function CompaniesPage() {
 }
 
 function CompanyDashboardPage() {
+  const { user } = useAuth()
+  const [saved, setSaved] = useState([])
+  const [purchases, setPurchases] = useState([])
+  const [offers, setOffers] = useState([])
+  const [licenses, setLicenses] = useState([])
+  useEffect(() => {
+    loadSavedIdeas(user?.id).then(({ data }) => setSaved(data ?? []))
+    loadBuyerPurchases(user?.id).then(({ data }) => setPurchases(data ?? []))
+    loadOffers(user?.id).then(({ data }) => setOffers(data ?? []))
+    loadLicenses(user?.id).then(({ data }) => setLicenses(data ?? []))
+  }, [user?.id])
   return (
     <main className="page-shell">
       <section className="page-hero narrow-hero"><div className="eyebrow">Company workspace</div><h1>Make the next move with context.</h1><p>Review saved ideas, active licenses, open offers, and recent conversations from one focused workspace.</p></section>
-      <section className="dashboard-grid"><div className="mini-stat"><span>Saved Ideas</span><strong>12</strong></div><div className="mini-stat"><span>Purchased Ideas</span><strong>4</strong></div><div className="mini-stat"><span>Active Licenses</span><strong>2</strong></div><div className="mini-stat"><span>Open Offers</span><strong>3</strong></div></section>
-      <section className="dashboard-columns"><div className="content-card"><div className="eyebrow">Recent activity</div><div className="activity-list"><p><strong>Inventory Assistant</strong><span>Offer countered · 2m ago</span></p><p><strong>Research Match Engine</strong><span>License active · 3d ago</span></p><p><strong>Smart Queue System</strong><span>Saved · 5d ago</span></p></div></div><div className="content-card"><div className="eyebrow">Next action</div><h3>Review your open offers.</h3><p className="idea-summary">There are 3 proposals waiting for a response across your saved ideas.</p><Link to="/offers" className="primary-button">Open Offers</Link></div></section>
+      <section className="dashboard-grid"><div className="mini-stat"><span>Saved Ideas</span><strong>{saved.length}</strong></div><div className="mini-stat"><span>Purchased Ideas</span><strong>{purchases.length}</strong></div><div className="mini-stat"><span>Active Licenses</span><strong>{licenses.filter((license) => license.status === 'active').length}</strong></div><div className="mini-stat"><span>Open Offers</span><strong>{offers.filter((offer) => offer.status === 'pending').length}</strong></div></section>
+      <section className="dashboard-columns"><div className="content-card"><div className="eyebrow">Recent activity</div><div className="activity-list">{[...purchases.slice(0, 2).map((item) => [item.ideas?.title, 'Purchased']), ...offers.slice(0, 2).map((item) => [item.ideas?.title, `Offer ${item.status}`])].map(([title, detail]) => <p key={`${title}-${detail}`}><strong>{title ?? 'Marketplace activity'}</strong><span>{detail}</span></p>)}{!purchases.length && !offers.length && <div className="empty-state"><strong>No activity yet.</strong><span>Saved ideas, offers, and purchases will appear here.</span></div>}</div></div><div className="content-card"><div className="eyebrow">Next action</div><h3>Review your marketplace activity.</h3><p className="idea-summary">Keep offers, purchased ideas, messages, and licenses moving from one workspace.</p><Link to="/offers" className="primary-button">Open Offers</Link></div></section>
       <nav className="workspace-nav" aria-label="Company dashboard sections"><Link to="/explore">Discover</Link><Link to="/saved">Saved</Link><Link to="/dashboard/purchased">Purchased</Link><Link to="/dashboard/licenses">Licenses</Link><Link to="/offers">Offers</Link><Link to="/messages">Messages</Link><Link to="/transactions">Transactions</Link></nav>
     </main>
   )
@@ -1359,6 +1459,25 @@ function HowItWorksPage() {
 }
 
 function MessagesPage() {
+  const { user } = useAuth()
+  const [messagesData, setMessagesData] = useState([])
+  const [profiles, setProfiles] = useState([])
+  const [recipientId, setRecipientId] = useState('')
+  const [body, setBody] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => {
+    loadMessages(user?.id).then(({ data }) => setMessagesData(data ?? []))
+    loadProfiles().then(({ data }) => setProfiles((data ?? []).filter((profile) => profile.id !== user?.id)))
+  }, [user?.id])
+  const send = async (event) => {
+    event.preventDefault()
+    if (!recipientId || !body.trim()) return setError('Choose a recipient and write a message.')
+    const result = await sendMessage({ senderId: user.id, recipientId, body: body.trim() })
+    if (result.error) return setError(result.error.message)
+    setMessagesData((current) => [...current, result.data])
+    setBody('')
+    setError('')
+  }
   return (
     <main className="page-shell">
       <section className="page-hero narrow-hero">
@@ -1374,11 +1493,9 @@ function MessagesPage() {
         </aside>
         <div className="chat-window">
           <div className="chat-meta"><span>Purchase discussion</span><strong>Inventory Assistant</strong><small>Northstar Labs · ₹18,000</small></div>
-          <div className="message-thread">
-            {messages.map((message) => <div key={message.text} className={`message ${message.from}`}>{message.text}</div>)}
-            <div className="message company">Could you share the expected implementation timeline?</div>
-          </div>
-          <div className="message-composer"><input type="text" placeholder="Write a message…" /><button type="button" className="primary-button small">Send</button></div>
+          <div className="message-thread">{messagesData.map((message) => <div key={message.id} className={`message ${message.sender_id === user?.id ? 'creator' : 'company'}`}>{message.body}</div>)}{!messagesData.length && <div className="empty-state"><strong>No messages yet.</strong><span>Start a marketplace conversation.</span></div>}</div>
+          <form className="message-composer" onSubmit={send}><select value={recipientId} onChange={(event) => setRecipientId(event.target.value)} aria-label="Message recipient"><option value="">Recipient</option>{profiles.map((profile) => <option value={profile.id} key={profile.id}>{profile.name}</option>)}</select><input type="text" value={body} onChange={(event) => setBody(event.target.value)} placeholder="Write a message…" /><button type="submit" className="primary-button small">Send</button></form>
+          {error && <div className="form-error" role="alert">{error}</div>}
           <div className="warning-box">Keep sensitive information and payments inside ENDLESS.</div>
         </div>
         <aside className="offer-panel">
@@ -1393,19 +1510,41 @@ function MessagesPage() {
 }
 
 function OffersPage() {
-  const offers = [
-    { idea: 'Inventory Assistant', person: 'Northstar Labs', amount: '₹15,000', rights: 'Exclusive License', status: 'Counter offer' },
-    { idea: 'Smart Queue System', person: 'CampusOne', amount: '₹12,000', rights: 'Full Ownership', status: 'Pending' },
-    { idea: 'Research Match Engine', person: 'Nina S.', amount: '₹10,000', rights: 'Non-Exclusive License', status: 'Accepted' },
-  ]
+  const { user } = useAuth()
+  const [offers, setOffers] = useState([])
+  const [ideas, setIdeas] = useState([])
+  const [form, setForm] = useState({ ideaId: '', amount: '', purchaseType: 'Full Ownership', message: '' })
+  const [feedback, setFeedback] = useState('')
+  useEffect(() => {
+    loadOffers(user?.id).then(({ data }) => setOffers(data ?? []))
+    loadIdeas().then(({ data }) => setIdeas((data ?? []).filter((idea) => idea.status === 'available')))
+  }, [user?.id])
+  const submitOffer = async (event) => {
+    event.preventDefault()
+    const idea = ideas.find((item) => item.id === form.ideaId)
+    if (!idea) return setFeedback('Choose an available idea.')
+    const result = await createOffer({ ideaId: idea.id, creatorId: idea.creator_id, buyerId: user.id, amount: Number(form.amount), purchaseType: form.purchaseType, message: form.message })
+    if (result.error) return setFeedback(result.error.message)
+    setFeedback('Offer sent.')
+    setForm({ ideaId: '', amount: '', purchaseType: 'Full Ownership', message: '' })
+    loadOffers(user.id).then(({ data }) => setOffers(data ?? []))
+  }
+  const respond = async (offerId, status) => {
+    const result = await updateOfferStatus(offerId, status)
+    if (result.error) return setFeedback(result.error.message)
+    setOffers((current) => current.map((offer) => offer.id === offerId ? { ...offer, status } : offer))
+  }
 
   return (
     <main className="page-shell">
       <section className="page-hero narrow-hero"><div className="eyebrow">Marketplace workspace</div><h1>Offers with clear terms and next steps.</h1><p>Review received, sent, pending, accepted, and countered proposals without losing the context around each idea.</p></section>
       <section className="content-card">
+        {user?.accountType === 'company' && <form className="form-grid offer-form" onSubmit={submitOffer}><label><span>Idea</span><select value={form.ideaId} onChange={(event) => setForm({ ...form, ideaId: event.target.value })}><option value="">Select an idea</option>{ideas.map((idea) => <option value={idea.id} key={idea.id}>{idea.title}</option>)}</select></label><label><span>Offer amount</span><input type="number" min="0" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} required /></label><label><span>Purchase type</span><select value={form.purchaseType} onChange={(event) => setForm({ ...form, purchaseType: event.target.value })}><option>Full Ownership</option><option>Exclusive License</option><option>Non-Exclusive License</option><option>Transferable Rights</option></select></label><label className="full-width"><span>Message</span><textarea value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} rows="3" /></label><button className="primary-button" type="submit">Send Offer</button></form>}
+        {feedback && <div className="form-success" role="status">{feedback}</div>}
         <div className="tab-row"><button type="button" className="tab active">All Offers</button><button type="button" className="tab">Received</button><button type="button" className="tab">Sent</button><button type="button" className="tab">Accepted</button></div>
         <div className="data-list">
-          {offers.map((offer) => <article className="data-row" key={offer.idea}><div><strong>{offer.idea}</strong><span>{offer.person}</span></div><div><strong>{offer.amount}</strong><span>{offer.rights}</span></div><span className="stage-pill">{offer.status}</span><div className="row-actions"><button type="button" className="secondary-button small">Decline</button><button type="button" className="primary-button small">Review</button></div></article>)}
+          {offers.map((offer) => <article className="data-row" key={offer.id}><div><strong>{offer.ideas?.title ?? 'Idea offer'}</strong><span>{offer.buyer?.name ?? offer.creator?.name ?? 'Marketplace member'}</span></div><div><strong>₹{Number(offer.amount).toLocaleString('en-IN')}</strong><span>{offer.purchase_type}</span></div><span className="stage-pill">{offer.status}</span>{offer.creator_id === user?.id && offer.status === 'pending' && <div className="row-actions"><button type="button" className="secondary-button small" onClick={() => respond(offer.id, 'declined')}>Decline</button><button type="button" className="primary-button small" onClick={() => respond(offer.id, 'accepted')}>Accept</button></div>}</article>)}
+          {!offers.length && <div className="empty-state"><strong>No offers yet.</strong><span>Offers you send or receive will appear here.</span></div>}
         </div>
       </section>
     </main>
@@ -1428,7 +1567,11 @@ function PurchasedPage() {
 }
 
 function LicensesPage() {
-  return <WorkspacePage eyebrow="Rights management" title="Licenses with the important dates in view." text="Review active, expired, and transferable licenses and keep every commercial term easy to find." cards={[['Inventory Assistant', 'Mark R. · 01 Aug 2026 — 01 Aug 2027', 'Active License'], ['Clinic Follow-Up Assistant', 'Priya N. · Expired 15 Jun 2026', 'Expired License']]} action="View License" />
+  const { user } = useAuth()
+  const [licenses, setLicenses] = useState([])
+  useEffect(() => { loadLicenses(user?.id).then(({ data }) => setLicenses(data ?? [])) }, [user?.id])
+  const cards = licenses.map((license) => [license.ideas?.title ?? 'Licensed idea', `${license.purchase_type} · ${new Date(license.starts_at).toLocaleDateString()}`, license.status])
+  return <WorkspacePage eyebrow="Rights management" title="Licenses with the important dates in view." text="Review active, expired, and transferable licenses and keep every commercial term easy to find." cards={cards} action="View License" />
 }
 
 function TransferPage() {
@@ -1436,22 +1579,33 @@ function TransferPage() {
 }
 
 function SavedPage() {
-  return <WorkspacePage eyebrow="Shortlist" title="Saved ideas worth another look." text="Compare the basics, contact creators, and keep your strongest opportunities close." cards={ideaListings.slice(0, 3).map((idea) => [idea.title, `${idea.creator} · ${idea.category}`, idea.price])} action="Open idea" />
+  const { user } = useAuth()
+  const [saved, setSaved] = useState([])
+  useEffect(() => { loadSavedIdeas(user?.id).then(({ data }) => setSaved(data ?? [])) }, [user?.id])
+  const cards = saved.map((entry) => [entry.ideas?.title ?? 'Saved idea', `${entry.ideas?.category ?? ''} · ${entry.ideas?.stage ?? ''}`, entry.ideas?.status ?? 'available'])
+  return <WorkspacePage eyebrow="Shortlist" title="Saved ideas worth another look." text="Compare the basics, contact creators, and keep your strongest opportunities close." cards={cards} action="Open idea" />
 }
 
 function TransactionsPage() {
-  return <main className="page-shell"><section className="page-hero narrow-hero"><div className="eyebrow">Activity ledger</div><h1>Every purchase, sale, and transfer in one record.</h1><p>Track amounts, transaction types, and statuses across the platform.</p></section><section className="content-card"><div className="data-list"><article className="data-row"><div><strong>Inventory Assistant</strong><span>12 Aug 2026</span></div><div><strong>₹18,000</strong><span>Purchase</span></div><span className="stage-pill">Completed</span></article><article className="data-row"><div><strong>Smart Queue System</strong><span>08 Aug 2026</span></div><div><strong>₹12,000</strong><span>Offer</span></div><span className="stage-pill">Pending</span></article></div></section></main>
+  const { user } = useAuth()
+  const [transactions, setTransactions] = useState([])
+  useEffect(() => { loadTransactions(user?.id).then(({ data }) => setTransactions(data ?? [])) }, [user?.id])
+  return <main className="page-shell"><section className="page-hero narrow-hero"><div className="eyebrow">Activity ledger</div><h1>Every purchase, sale, and transfer in one record.</h1><p>Track amounts, transaction types, and statuses across the platform.</p></section><section className="content-card"><div className="data-list">{transactions.map((transaction) => <article className="data-row" key={transaction.id}><div><strong>{transaction.ideas?.title ?? 'Idea transaction'}</strong><span>{new Date(transaction.created_at).toLocaleDateString()}</span></div><div><strong>₹{Number(transaction.amount).toLocaleString('en-IN')}</strong><span>{transaction.type}</span></div><span className="stage-pill">{transaction.status}</span></article>)}{!transactions.length && <div className="empty-state"><strong>No transactions yet.</strong><span>Completed marketplace activity will appear here.</span></div>}</div></section></main>
 }
 
 function DashboardPage() {
   const { user } = useAuth()
   const [counts, setCounts] = useState({ available: 0, under_offer: 0, sold: 0 })
+  const [ideas, setIdeas] = useState([])
+  const [offers, setOffers] = useState([])
 
   useEffect(() => {
     loadCreatorCounts(user?.id).then(({ data }) => { if (data) setCounts(data) })
+    loadCreatorIdeas(user?.id).then(({ data }) => setIdeas(data ?? []))
+    loadOffers(user?.id).then(({ data }) => setOffers(data ?? []))
   }, [user?.id])
 
-  return <main className="page-shell"><section className="page-hero narrow-hero"><div className="eyebrow">Creator dashboard</div><h1>Your ideas, conversations, and earnings at a glance.</h1><p>Keep your listings moving and follow every opportunity from first view to completed transaction.</p></section><section className="dashboard-grid"><div className="mini-stat"><span>Available</span><strong>{counts.available}</strong></div><div className="mini-stat"><span>Under Offer</span><strong>{counts.under_offer}</strong></div><div className="mini-stat"><span>Sold</span><strong>{counts.sold}</strong></div></section></main>
+  return <main className="page-shell"><section className="page-hero narrow-hero"><div className="eyebrow">Creator dashboard</div><h1>Your ideas, conversations, and earnings at a glance.</h1><p>Keep your listings moving and follow every opportunity from first view to completed transaction.</p></section><section className="dashboard-grid"><div className="mini-stat"><span>Available</span><strong>{counts.available}</strong></div><div className="mini-stat"><span>Under Offer</span><strong>{counts.under_offer}</strong></div><div className="mini-stat"><span>Sold</span><strong>{counts.sold}</strong></div></section><section className="content-card listing-panel"><div className="eyebrow">My ideas</div><div className="data-list">{ideas.map((idea) => <article className="data-row" key={idea.id}><div><strong>{idea.title}</strong><span>{idea.category} · {idea.stage}</span></div><div><strong>₹{Number(idea.asking_price).toLocaleString('en-IN')}</strong><span>{idea.status}</span></div><Link to={`/idea/${idea.slug}`} className="secondary-button small">View</Link></article>)}{!ideas.length && <div className="empty-state"><strong>No ideas published yet.</strong><Link to="/submit" className="secondary-button small">Submit an idea</Link></div>}</div></section><section className="content-card listing-panel"><div className="eyebrow">Offers</div><div className="data-list">{offers.slice(0, 5).map((offer) => <article className="data-row" key={offer.id}><div><strong>{offer.ideas?.title ?? 'Idea offer'}</strong><span>{offer.buyer?.name ?? 'Buyer'}</span></div><span className="stage-pill">{offer.status}</span></article>)}{!offers.length && <div className="empty-state"><strong>No offers yet.</strong></div>}</div></section></main>
 }
 
 function WorkspacePage({ eyebrow, title, text, cards, action }) {
@@ -1644,14 +1798,18 @@ function PrivacyPage() {
 function SearchPage() {
   const [searchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('q') ?? '')
+  const [ideaResults, setIdeaResults] = useState([])
   const normalizedQuery = query.trim().toLowerCase()
-  const ideaResults = ideaListings.filter((idea) => `${idea.title} ${idea.category} ${idea.creator}`.toLowerCase().includes(normalizedQuery))
   const categoryResults = categories.filter((category) => `${category[1]} ${category[2]} ${category[4].join(' ')}`.toLowerCase().includes(normalizedQuery))
+  useEffect(() => {
+    if (!normalizedQuery) return setIdeaResults([])
+    loadIdeas({ search: normalizedQuery }).then(({ data }) => setIdeaResults(data ?? []))
+  }, [normalizedQuery])
 
   return (
     <main className="page-shell">
       <section className="page-hero narrow-hero"><div className="eyebrow">Search ENDLESS</div><h1>Find the thread worth following.</h1><p>Search ideas, categories, subcategories, industries, problems, keywords, and creators.</p><div className="search-box search-page-box"><span className="search-icon">⌕</span><input autoFocus type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Try “college food” or “creator tools”…" /></div></section>
-      {query && <section className="search-results"><div className="eyebrow">Results for “{query}”</div><div className="search-result-columns"><div className="content-card"><h2>Ideas</h2>{ideaResults.length ? ideaResults.map((idea) => <Link className="search-result" to={`/idea/${idea.id}`} key={idea.id}><strong>{idea.title}</strong><span>{idea.category} · {idea.creator}</span></Link>) : <div className="empty-state"><strong>No matching ideas yet.</strong><span>Try a broader keyword.</span></div>}</div><div className="content-card"><h2>Categories</h2>{categoryResults.length ? categoryResults.slice(0, 8).map((category) => <Link className="search-result" to={`/category/${category[0]}`} key={category[0]}><strong>{category[1]}</strong><span>{category[3]} ideas · {category[2]}</span></Link>) : <div className="empty-state"><strong>No matching categories.</strong><span>Try another phrase.</span></div>}</div></div></section>}
+      {query && <section className="search-results"><div className="eyebrow">Results for “{query}”</div><div className="search-result-columns"><div className="content-card"><h2>Ideas</h2>{ideaResults.length ? ideaResults.map((idea) => <Link className="search-result" to={`/idea/${idea.slug}`} key={idea.id}><strong>{idea.title}</strong><span>{idea.category} · {idea.industry}</span></Link>) : <div className="empty-state"><strong>No matching ideas yet.</strong><span>Try a broader keyword.</span></div>}</div><div className="content-card"><h2>Categories</h2>{categoryResults.length ? categoryResults.slice(0, 8).map((category) => <Link className="search-result" to={`/category/${category[0]}`} key={category[0]}><strong>{category[1]}</strong><span>{category[3]} ideas · {category[2]}</span></Link>) : <div className="empty-state"><strong>No matching categories.</strong><span>Try another phrase.</span></div>}</div></div></section>}
       {!query && <section className="content-card search-empty"><div className="eyebrow">Start searching</div><h2>Try a problem, category, or creator name.</h2><div className="subcategory-list"><button type="button" onClick={() => setQuery('college food')}>college food</button><button type="button" onClick={() => setQuery('creator tools')}>creator tools</button><button type="button" onClick={() => setQuery('retail')}>retail</button></div></section>}
     </main>
   )
