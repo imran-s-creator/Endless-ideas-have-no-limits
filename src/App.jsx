@@ -216,6 +216,7 @@ function AppShell({ children }) {
       '/signup': 'Create account',
       '/forgot-password': 'Reset password',
       '/search': 'Search',
+      '/privacy': 'Privacy Policy',
     }
 
     if (location.pathname.startsWith('/idea/')) return 'Idea details'
@@ -312,7 +313,7 @@ function AppShell({ children }) {
           <Link to="/creators">Creators</Link>
           <Link to="/companies">For Companies</Link>
           <Link to="/submit">Submit an Idea</Link>
-          <Link to="/settings">Privacy</Link>
+          <Link to="/privacy">Privacy Policy</Link>
           <Link to="/404">Terms</Link>
         </nav>
       </footer>
@@ -1211,6 +1212,7 @@ function SubmitPage() {
           <button type="button" className="secondary-button">Save Draft</button>
           <button type="button" className="primary-button">Publish Listing</button>
         </div>
+        <p className="form-privacy-note">By submitting an idea, you understand that the information you provide is used to create and manage your listing. Read the <Link to="/privacy">Privacy Policy</Link>.</p>
       </section>
     </main>
   )
@@ -1549,7 +1551,7 @@ function SignupPage() {
     else setMessage('Check your email to confirm your account, then sign in to continue.')
   }
 
-  return <main className="page-shell auth-shell"><section className="content-card auth-card"><BrandMark /><div className="eyebrow">Create account</div><h1>Join the ENDLESS marketplace</h1><p>Create a real account as a creator or company buyer.</p>{error && <div className="form-error" role="alert">{error}</div>}{message && <div className="form-success" role="status">{message}</div>}<form className="form-grid simple-form" onSubmit={handleSubmit}><label><span>Name</span><input value={form.name} onChange={update('name')} autoComplete="name" /></label><label><span>Email</span><input type="email" value={form.email} onChange={update('email')} autoComplete="email" /></label><label><span>Password</span><input type="password" value={form.password} onChange={update('password')} autoComplete="new-password" /></label><label><span>Confirm Password</span><input type="password" value={form.confirmPassword} onChange={update('confirmPassword')} autoComplete="new-password" /></label><label><span>Account Type</span><select value={form.accountType} onChange={update('accountType')}><option value="creator">Creator</option><option value="company">Company / Buyer</option></select></label><button type="submit" className="primary-button wide" disabled={isSubmitting}>{isSubmitting ? 'Creating account…' : 'Create Account'}</button></form><div className="auth-links"><Link to="/login">Already have an account? Sign in</Link></div></section></main>
+  return <main className="page-shell auth-shell"><section className="content-card auth-card"><BrandMark /><div className="eyebrow">Create account</div><h1>Join the ENDLESS marketplace</h1><p>Create a real account as a creator or company buyer.</p>{error && <div className="form-error" role="alert">{error}</div>}{message && <div className="form-success" role="status">{message}</div>}<form className="form-grid simple-form" onSubmit={handleSubmit}><label><span>Name</span><input value={form.name} onChange={update('name')} autoComplete="name" /></label><label><span>Email</span><input type="email" value={form.email} onChange={update('email')} autoComplete="email" /></label><label><span>Password</span><input type="password" value={form.password} onChange={update('password')} autoComplete="new-password" /></label><label><span>Confirm Password</span><input type="password" value={form.confirmPassword} onChange={update('confirmPassword')} autoComplete="new-password" /></label><label><span>Account Type</span><select value={form.accountType} onChange={update('accountType')}><option value="creator">Creator</option><option value="company">Company / Buyer</option></select></label><button type="submit" className="primary-button wide" disabled={isSubmitting}>{isSubmitting ? 'Creating account…' : 'Create Account'}</button></form><p className="form-privacy-note">By creating an account, you acknowledge that ENDLESS will use your information to provide account and marketplace features. Read the <Link to="/privacy">Privacy Policy</Link>.</p><div className="auth-links"><Link to="/login">Already have an account? Sign in</Link></div></section></main>
 }
 
 function ForgotPasswordPage() {
@@ -1560,6 +1562,83 @@ function ForgotPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const handleSubmit = async (event) => { event.preventDefault(); setError(''); setMessage(''); if (!email.trim()) return setError('Enter your email address.'); setIsSubmitting(true); const result = await resetPassword(email.trim()); setIsSubmitting(false); if (result.error) setError(result.error.message); else setMessage('If an account exists for that email, a secure reset link is on its way.') }
   return <main className="page-shell auth-shell"><section className="content-card auth-card"><BrandMark /><div className="eyebrow">Password reset</div><h1>Reset your password</h1><p>We’ll send the next steps to your email.</p>{error && <div className="form-error" role="alert">{error}</div>}{message && <div className="form-success" role="status">{message}</div>}<form className="form-grid simple-form" onSubmit={handleSubmit}><label><span>Email</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label><button type="submit" className="primary-button wide" disabled={isSubmitting}>{isSubmitting ? 'Sending…' : 'Send Reset Link'}</button></form></section></main>
+}
+
+const privacySections = [
+  ['introduction', 'Introduction'],
+  ['information-we-collect', 'Information We Collect'],
+  ['how-we-use-information', 'How We Use Information'],
+  ['idea-and-content-information', 'Idea and Content Information'],
+  ['marketplace-communications', 'Marketplace Communications'],
+  ['purchases-offers-transactions', 'Purchases, Offers and Transactions'],
+  ['information-sharing', 'Information Sharing'],
+  ['third-party-services', 'Third-Party Services'],
+  ['cookies', 'Cookies and Similar Technologies'],
+  ['storage-security', 'Data Storage and Security'],
+  ['retention', 'Data Retention'],
+  ['privacy-rights', 'User Privacy Rights'],
+  ['consent', 'Consent and Withdrawal'],
+  ['deletion', 'Account and Data Deletion Requests'],
+  ['childrens-privacy', "Children's Privacy"],
+  ['changes', 'Changes to This Privacy Policy'],
+  ['contact', 'Contact / Privacy Enquiries'],
+]
+
+function PrivacyPage() {
+  const navigate = useNavigate()
+
+  const jumpToSection = (event) => {
+    const id = event.target.value
+    if (id) navigate(`/privacy#${id}`)
+  }
+
+  return (
+    <main className="page-shell privacy-page">
+      <section className="page-hero privacy-hero">
+        <div className="eyebrow">ENDLESS / Legal</div>
+        <h1>Privacy Policy</h1>
+        <p>How ENDLESS handles information when you create an account, publish an idea, explore the marketplace, or complete a purchase.</p>
+        <div className="privacy-effective">Effective date: 18 September 2026</div>
+      </section>
+
+      <div className="privacy-mobile-nav">
+        <label htmlFor="privacy-section">Jump to a section</label>
+        <select id="privacy-section" defaultValue="" onChange={jumpToSection}>
+          <option value="" disabled>Select a section</option>
+          {privacySections.map(([id, label]) => <option value={id} key={id}>{label}</option>)}
+        </select>
+      </div>
+
+      <div className="privacy-layout">
+        <aside className="privacy-toc" aria-label="Privacy Policy sections">
+          <div className="eyebrow">On this page</div>
+          <nav>
+            {privacySections.map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
+          </nav>
+        </aside>
+
+        <article className="privacy-content">
+          <section id="introduction"><h2>1. Introduction</h2><p>This Privacy Policy explains how ENDLESS collects, uses, stores, and shares personal information in connection with the ENDLESS ideas marketplace. It applies to the website and the account features available through it.</p><p>ENDLESS is currently a focused marketplace application. This policy describes the features and data practices that are implemented today. It does not promise practices or services that are not present in the application.</p></section>
+          <section id="information-we-collect"><h2>2. Information We Collect</h2><h3>Account information</h3><p>When you create an account, we collect your name, email address, password credentials handled by the authentication service, and whether you use the account as a creator or company/buyer.</p><h3>Profile information</h3><p>Your profile can include your name, email address, account type, profile image value, and other profile details that you choose to provide. The current profile record stores name, email, account type, profile image, and account creation time.</p><h3>Ideas and uploaded content</h3><p>The submission screen asks for listing information such as title, category, subcategory, industry, summary, protected details, stage, rights information, and asking price. The current screen is a prototype and does not persist those entries. It also has no file-upload control, so ENDLESS does not currently collect uploaded files through that screen. If connected submission storage is enabled later, the information you provide will be handled under this policy.</p><h3>Messages and communications</h3><p>The current interface includes example conversation and offer screens. Those examples are not connected to message or offer storage in the current application. If you contact ENDLESS directly, we may receive the information you include in that communication.</p><h3>Offers and transaction information</h3><p>The current database records completed idea purchases, including the idea, buyer account, amount, rights type, and purchase time. The visible offers and transaction workspace includes demonstration content; no separate offer record or payment-provider record is currently defined in the application.</p><h3>Technical information</h3><p>The browser and services used to deliver the site may process basic request, device, and browser information as part of normal operation. ENDLESS does not currently add analytics or advertising tools to the application. The authentication client stores a session in the browser so that you can remain signed in.</p></section>
+          <section id="how-we-use-information"><h2>3. How We Use Information</h2><p>We use information to create and authenticate accounts, show profiles and public idea listings, operate creator and buyer workspaces, display and manage ideas, complete and record purchases, preserve rights and transaction details, respond to enquiries, protect the service, and maintain and improve the application.</p></section>
+          <section id="idea-and-content-information"><h2>4. Idea and Content Information</h2><p>Information in a public listing may be visible to other visitors and account holders as part of the marketplace. Protected details are intended to be shown only through the access or purchase flow represented by the application. Do not submit information you do not have the right to share. You remain responsible for the content you provide and for choosing what belongs in a public listing.</p></section>
+          <section id="marketplace-communications"><h2>5. Marketplace Communications</h2><p>ENDLESS presents a workspace for creator and buyer conversations. In the current build, the displayed conversations are sample interface content and are not persisted as a message system. Where you send information to ENDLESS or a person through a future supported communication feature, that information may be processed to deliver the communication and maintain the related marketplace context.</p></section>
+          <section id="purchases-offers-transactions"><h2>6. Purchases, Offers and Transactions</h2><p>When a signed-in buyer completes a purchase through the current application, ENDLESS records the buyer, idea, amount, rights type, and purchase date. The application does not currently collect card details or connect to a payment provider. Offers and some transaction views are currently interface examples; do not treat them as proof of a completed legal transfer or payment.</p></section>
+          <section id="information-sharing"><h2>7. Information Sharing</h2><p>We share information only as needed to operate the application and its marketplace, including showing public profile or idea information, enabling a purchase record to be associated with the relevant buyer and idea, using infrastructure providers that process data for ENDLESS, complying with law, or protecting rights, safety, and the service. We do not sell personal information.</p></section>
+          <section id="third-party-services"><h2>8. Third-Party Services</h2><p>The application uses Supabase for authentication and database services. Supabase may process account, profile, idea, and purchase data on ENDLESS's behalf under its own terms and policies. The current application does not integrate an analytics platform, advertising network, file-hosting service, or payment provider.</p></section>
+          <section id="cookies"><h2>9. Cookies and Similar Technologies</h2><p>ENDLESS does not currently use advertising or analytics cookies. The authentication client uses browser storage to persist an authenticated session and support sign-in. Browser or infrastructure services may use necessary technical mechanisms to deliver requests securely. You can manage browser storage through your browser settings, but disabling it may prevent sign-in or other account features from working.</p></section>
+          <section id="storage-security"><h2>10. Data Storage and Security</h2><p>Account, profile, idea, and purchase records are stored through the configured Supabase project. We use authentication controls, database access policies, and service configuration intended to limit access. No online service can guarantee absolute security, so keep your password private and contact us promptly about suspected unauthorized access.</p></section>
+          <section id="retention"><h2>11. Data Retention</h2><p>We retain information for as long as needed to provide the account and marketplace features, maintain purchase and rights records, meet legal or operational obligations, resolve disputes, and enforce agreements. Retention may vary by record type. Some transaction records may need to remain after an account is closed to preserve marketplace history or legal records.</p></section>
+          <section id="privacy-rights"><h2>12. User Privacy Rights</h2><p>Depending on where you live, you may have rights to request access to, correction of, deletion of, or a copy of your personal information, or to object to or limit certain processing. You may also have a right to complain to your local data protection authority. We may need to verify your identity before completing a request.</p></section>
+          <section id="consent"><h2>13. Consent and Withdrawal</h2><p>Where processing relies on your consent, you may withdraw it by contacting ENDLESS. Withdrawal does not affect processing that took place before withdrawal or processing based on another lawful basis. Some withdrawal requests may mean that we cannot provide an account or feature.</p></section>
+          <section id="deletion"><h2>14. Account and Data Deletion Requests</h2><p>To request account or personal data deletion, contact ENDLESS using the privacy enquiry route below and include the email address associated with your account. We may verify the request, explain any information that must be retained, and delete or de-identify eligible information within a reasonable period.</p></section>
+          <section id="childrens-privacy"><h2>15. Children's Privacy</h2><p>ENDLESS is not directed to children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child has provided personal information, contact us so we can review and remove it where appropriate.</p></section>
+          <section id="changes"><h2>16. Changes to This Privacy Policy</h2><p>We may update this policy when the application, its data practices, or legal requirements change. We will post the updated version on this page and change the effective date. Please review this page periodically.</p></section>
+          <section id="contact"><h2>17. Contact / Privacy Enquiries</h2><p>For privacy questions, access, correction, withdrawal, or deletion requests, contact the ENDLESS team through the support contact associated with your ENDLESS account or the service through which you received access to ENDLESS. Please include enough detail for us to understand and verify your request.</p></section>
+        </article>
+      </div>
+    </main>
+  )
 }
 
 function SearchPage() {
@@ -1612,6 +1691,7 @@ function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
