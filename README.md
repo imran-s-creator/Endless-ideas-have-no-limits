@@ -1,15 +1,86 @@
-# ENDLESS
+# ENDLESS — Idea Marketplace
 
-## Authentication setup
+> **Ideas have no limits.**
 
-ENDLESS uses Supabase Auth for real email/password sessions. Copy `.env.example` to `.env.local`, add the Supabase project URL and publishable anon key, then run `supabase/schema.sql` in the Supabase SQL editor. The schema creates the protected `profiles` table and creates a profile record whenever a user registers.
+ENDLESS is an idea marketplace where creators can share original ideas and companies can discover, connect, evaluate, and acquire ideas that match their needs.
 
-Supabase email confirmation controls whether signup returns an authenticated session immediately. Password reset links return to `/login`.
-ENDLESS
+The platform is designed to make the journey from **idea → connection → agreement → value → build** simple and transparent.
 
-ENDLESS is a premium marketplace for discovering, discussing, buying, licensing, and transferring original ideas.
+## What is ENDLESS?
 
-## Run locally
+Many good ideas never move beyond the person who thought of them.
+
+ENDLESS creates a space where people can:
+
+- Share original ideas
+- Discover ideas from different categories and industries
+- Connect directly with creators
+- Discuss ideas before making an offer
+- Purchase ideas based on available rights
+- Manage purchased ideas and licenses
+- Track offers and transactions
+
+Companies can explore ideas, communicate with creators, and find concepts that could fit their products, services, or business goals.
+
+## Core Features
+
+### Explore Ideas
+
+Discover ideas through categories, industries, problems, keywords, idea stage, price, purchase type, most viewed, and recently added listings.
+
+### Publish an Idea
+
+Creators can submit basic information, the problem, general concept, target users, opportunity, asking price, purchase type, rights information, and supporting details.
+
+### Protected Idea Details
+
+Creators can keep sensitive implementation details protected. Public visitors see a teaser, while detailed information can be made available through approved access or an agreed purchase.
+
+### Chat and Offers
+
+Buyers can communicate directly with creators before purchasing or making an offer. Offers support acceptance, decline, and negotiation workflows.
+
+### Rights and Licensing
+
+Ideas can be offered with different rights depending on the creator's agreement:
+
+- Full Ownership
+- Exclusive License
+- Non-exclusive License
+- Transferable Rights
+
+### Transfer and Resale
+
+Purchased ideas may be transferred or resold only when the original agreement and rights allow it.
+
+### Dashboards
+
+Creator dashboards cover overview, ideas, offers, messages, transactions, and activity. Company dashboards cover overview, saved ideas, purchased ideas, active licenses, offers, messages, and transactions.
+
+## Main Pages
+
+```text
+/
+├── Explore Ideas
+├── Idea Details
+├── Submit an Idea
+├── Creators
+├── Creator Profile
+├── For Companies
+├── How It Works
+├── Messages
+├── Offers
+├── Saved Ideas
+├── Purchased Ideas
+├── Licenses
+├── Transfer / Resale
+├── Transactions
+├── Settings
+├── Login
+└── Sign Up
+```
+
+## Run Locally
 
 ```bash
 npm install
@@ -23,7 +94,7 @@ npm run build
 npm run lint
 ```
 
-## Authentication setup
+## Authentication Setup
 
 ENDLESS uses Supabase Auth for real email/password sessions. Copy `.env.example` to `.env.local` and add your Supabase project values:
 
@@ -38,22 +109,4 @@ Supabase email confirmation controls whether signup creates an authenticated ses
 
 Do not commit `.env.local` or service-role keys. Only the publishable Supabase key belongs in the Vite client environment.
 
-## Main routes
-
-- `/` — premium ENDLESS introduction
-- `/explore` — marketplace and category discovery
-- `/idea/:id` — public idea teaser and protected details
-- `/submit` — authenticated creator submission flow
-- `/creators` and `/creator/:id` — creator discovery and profiles
-- `/companies` and `/dashboard/company` — company discovery and workspace
-- `/messages` — authenticated marketplace conversations
-- `/offers` — authenticated offer management
-- `/dashboard/creator` — creator dashboard
-- `/dashboard/purchased` — purchased ideas
-- `/dashboard/licenses` — license management
-- `/transfer` — agreement-aware transfer and resale
-- `/saved` — saved ideas
-- `/transactions` — transaction history
-- `/settings` — authenticated account settings
-
-The app uses the official ENDLESS icon asset from `public/favicon.svg` for the favicon and shared brand surfaces.
+The official ENDLESS icon asset is used from `public/favicon.svg` for the favicon and shared brand surfaces.
