@@ -2,6 +2,7 @@ import './App.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from './auth/useAuth.js'
+import { isSupabaseConfigured, loadBuyerPurchases, loadCreatorCounts, loadIdeaStatuses, purchaseIdea } from './lib/supabase.js'
 
 const navItems = [
   { label: 'Explore', to: '/explore' },
@@ -56,6 +57,34 @@ const ideaListings = [
     initials: 'PN',
   },
 ]
+
+function useMarketplaceIdeas() {
+  const [ideas, setIdeas] = useState(ideaListings)
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return undefined
+    let mounted = true
+    loadIdeaStatuses().then(({ data }) => {
+      if (!mounted || !data) return
+      const statuses = new Map(data.map((item) => [item.slug, item]))
+      setIdeas(ideaListings.map((idea) => {
+        const status = statuses.get(idea.id)
+        return { ...idea, dbId: status?.id, status: status?.status ?? 'available', sold_at: status?.sold_at, allows_transfer_resale: status?.allows_transfer_resale ?? false, rights_type: status?.rights_type }
+      }))
+    })
+    return () => { mounted = false }
+  }, [])
+
+  return ideas
+}
+
+function IdeaStatusBadge({ idea }) {
+  return idea.status === 'sold' ? <span className="state-badge sold-badge">SOLD</span> : <span className="stage-pill">{idea.stage}</span>
+}
+
+function ideaPrice(idea) {
+  return idea.status === 'sold' ? 'Sold' : idea.price
+}
 
 const filterGroups = [
   { title: 'Category', items: ['All Ideas', 'Advertising', 'Apps', 'Websites', 'Business', 'Marketing', 'Branding', 'Products', 'Design', 'AI & Technology', 'Education', 'Finance', 'Health & Wellness', 'Food & Restaurants', 'E-commerce', 'Social & Community', 'Entertainment', 'Gaming', 'Travel & Transportation', 'Sustainability', 'Campus & Students', 'Creators & Content', 'Events & Experiences', 'Retail', 'Productivity & Work', 'Security & Privacy', 'Real Estate & Smart Living', 'Fashion & Lifestyle'] },
@@ -894,10 +923,11 @@ export function LegacyHomePage() {
 }
 
 function ExplorePage() {
+  const marketplaceIdeas = useMarketplaceIdeas()
   const [activeCategory, setActiveCategory] = useState('All Ideas')
   const [sort, setSort] = useState('Recently Added')
   const [query, setQuery] = useState('')
-  const visibleIdeas = ideaListings.filter((idea) => {
+  const visibleIdeas = marketplaceIdeas.filter((idea) => {
     const matchesQuery = `${idea.title} ${idea.category} ${idea.creator}`.toLowerCase().includes(query.toLowerCase())
     const matchesCategory = activeCategory === 'All Ideas' || idea.category.toLowerCase().includes(activeCategory.toLowerCase().replace(' & ', ' ')) || (activeCategory === 'Campus & Students' && idea.category.includes('Campus')) || (activeCategory === 'Education' && idea.category.includes('Education'))
     return matchesQuery && matchesCategory
@@ -946,8 +976,8 @@ function ExplorePage() {
               <h3>{idea.title}</h3>
               <div className="idea-bottom">
                 <div>
-                  <span className="meta-line">Asking price</span>
-                  <strong className="price">{idea.price}</strong>
+                  <span className="meta-line">{idea.status === 'sold' ? 'Status' : 'Asking price'}</span>
+                  <strong className={`price ${idea.status === 'sold' ? 'sold-price' : ''}`}>{ideaPrice(idea)}</strong>
                 </div>
                 <div className="meta-stack">
                   <span>{idea.interest}</span>
@@ -955,7 +985,7 @@ function ExplorePage() {
                 </div>
               </div>
               <div className="idea-footer">
-                <span className="stage-pill">{idea.stage}</span>
+                <IdeaStatusBadge idea={idea} />
                 <Link to={`/idea/${idea.id}`} className="secondary-button small">View Idea</Link>
               </div>
             </article>
@@ -969,13 +999,14 @@ function ExplorePage() {
 }
 
 function CategoryPage() {
+  const marketplaceIdeas = useMarketplaceIdeas()
   const { slug } = useParams()
   const category = categoryMap[slug]
 
   if (!category) return <NotFoundPage />
 
   const [, name, description, count, subcategories] = category
-  const matchingIdeas = ideaListings.filter((idea) => idea.category.toLowerCase().includes(name.toLowerCase().split(' ')[0]) || (name === 'Campus & Students' && idea.category.includes('Campus')) || (name === 'Education' && idea.category.includes('Education')))
+  const matchingIdeas = marketplaceIdeas.filter((idea) => idea.category.toLowerCase().includes(name.toLowerCase().split(' ')[0]) || (name === 'Campus & Students' && idea.category.includes('Campus')) || (name === 'Education' && idea.category.includes('Education')))
 
   return (
     <main className="page-shell">
@@ -987,12 +1018,50 @@ function CategoryPage() {
 }
 
 function IdeaDetailPage() {
-  const idea = ideaListings[1]
+  const marketplaceIdeas = useMarketplaceIdeas()
+  const { user, isAuthenticated } = useAuth()
+  const { id } = useParams()
+  const [isPurchasing, setIsPurchasing] = useState(false)
+  const [purchaseError, setPurchaseError] = useState('')
+  const [purchased, setPurchased] = useState(false)
+  const [isCurrentOwner, setIsCurrentOwner] = useState(false)
+  const idea = marketplaceIdeas.find((item) => item.id === id) ?? ideaListings[1]
+  const isSold = idea.status === 'sold' || purchased
+
+  useEffect(() => {
+    if (!isSold || !user?.id) return undefined
+    let mounted = true
+    loadBuyerPurchases(user.id).then(({ data }) => {
+      if (mounted) setIsCurrentOwner((data ?? []).some((purchase) => purchase.ideas?.slug === idea.id))
+    })
+    return () => { mounted = false }
+  }, [idea.id, isSold, user?.id])
+
+  const handlePurchase = async () => {
+    if (!isAuthenticated) return
+    if (!idea.dbId) {
+      setPurchaseError('This listing is not connected to the marketplace database yet.')
+      return
+    }
+    setPurchaseError('')
+    setIsPurchasing(true)
+    const result = await purchaseIdea(idea.dbId)
+    setIsPurchasing(false)
+    if (result.alreadySold) {
+      setPurchased(true)
+      return
+    }
+    if (result.error) {
+      setPurchaseError(result.error.message)
+      return
+    }
+    setPurchased(true)
+  }
 
   return (
     <main className="page-shell">
       <section className="page-hero narrow-hero">
-        <div className="eyebrow">Idea detail</div>
+        <div className="eyebrow">Idea detail {isSold && <span className="state-badge sold-badge">SOLD</span>}</div>
         <h1>{idea.title}</h1>
         <p>A practical idea for small retailers who need faster inventory decisions, clearer stock visibility, and lower operational risk.</p>
         <div className="idea-byline"><Link to="/creator/mark-reynolds" className="creator-name">Mark Reynolds</Link><span>Retail · Early Validation · 18 Aug 2026</span></div>
@@ -1015,7 +1084,7 @@ function IdeaDetailPage() {
             </div>
             <div>
               <span className="mini-label">Price</span>
-              <strong>₹18,000</strong>
+              <strong>{ideaPrice(idea)}</strong>
             </div>
             <div>
               <span className="mini-label">Industry</span>
@@ -1060,16 +1129,22 @@ function IdeaDetailPage() {
         <aside className="locked-panel sticky-panel">
           <div className="locked-document" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
           <div className="lock-header">FULL IDEA DETAILS</div>
-          <div className="lock-tag">Locked</div>
-          <p>Some ideas are meant to be discovered. The complete story is unlocked with access.</p>
+          <div className="lock-tag">{isSold ? 'SOLD' : 'Locked'}</div>
+          <p>{isSold ? 'This idea has already been sold.' : 'Some ideas are meant to be discovered. The complete story is unlocked with access.'}</p>
           <p className="protected-note">Detailed implementation information is available after purchase or approved access.</p>
           <div className="purchase-summary">
             <div><span>Creator</span><strong>Mark R.</strong></div>
-            <div><span>Asking price</span><strong>₹18,000</strong></div>
+            <div><span>{isSold ? 'Status' : 'Asking price'}</span><strong>{ideaPrice(idea)}</strong></div>
             <div><span>Purchase type</span><strong>Transferable Rights</strong></div>
             <div><span>Rights included</span><strong>Agreement-defined</strong></div>
           </div>
-          <div className="detail-actions"><Link to="/messages" className="secondary-button wide">Chat with Creator</Link><Link to="/offers" className="secondary-button wide">Make an Offer</Link><Link to="/login" className="primary-button wide">Unlock Full Idea</Link></div>
+          {purchaseError && <div className="form-error" role="alert">{purchaseError}</div>}
+          <div className="detail-actions">
+            <Link to="/messages" className="secondary-button wide">Chat with Creator</Link>
+            {!isSold && <Link to="/offers" className="secondary-button wide">Make an Offer</Link>}
+            {!isSold && (isAuthenticated ? <button type="button" className="primary-button wide" onClick={handlePurchase} disabled={isPurchasing}>{isPurchasing ? 'Purchasing…' : 'Unlock Full Idea'}</button> : <Link to={`/login?redirect=/idea/${idea.id}`} className="primary-button wide">Unlock Full Idea</Link>)}
+          </div>
+          {isSold && isCurrentOwner && idea.allows_transfer_resale && <Link to="/transfer" className="secondary-button wide">Transfer / Resell</Link>}
           <p className="rights-disclaimer">Rights are determined by the agreement between the creator and buyer. Platform records do not automatically establish legal ownership.</p>
         </aside>
       </section>
@@ -1142,6 +1217,7 @@ function SubmitPage() {
 }
 
 function CreatorsPage() {
+  const marketplaceIdeas = useMarketplaceIdeas()
   return (
     <main className="page-shell">
       <section className="page-hero">
@@ -1165,13 +1241,13 @@ function CreatorsPage() {
           </div>
         </div>
         <div className="idea-grid compact-grid">
-          {ideaListings.slice(0, 2).map((idea) => (
+          {marketplaceIdeas.slice(0, 2).map((idea) => (
             <article className="idea-card" key={idea.id}>
               <h3>{idea.title}</h3>
               <div className="idea-bottom">
                 <div>
                   <span className="meta-line">Asking price</span>
-                  <strong className="price">{idea.price}</strong>
+                  <strong className="price">{ideaPrice(idea)}</strong>
                 </div>
                 <div className="meta-stack">
                   <span>{idea.interest}</span>
@@ -1179,7 +1255,7 @@ function CreatorsPage() {
                 </div>
               </div>
               <div className="idea-footer">
-                <span className="stage-pill">{idea.stage}</span>
+                <IdeaStatusBadge idea={idea} />
                 <Link to={`/idea/${idea.id}`} className="secondary-button small">View</Link>
               </div>
             </article>
@@ -1191,6 +1267,7 @@ function CreatorsPage() {
 }
 
 function CreatorProfilePage() {
+  const marketplaceIdeas = useMarketplaceIdeas()
   return (
     <main className="page-shell">
       <section className="profile-hero">
@@ -1198,13 +1275,14 @@ function CreatorProfilePage() {
         <div><div className="eyebrow">Creator profile</div><h1>Mark Reynolds</h1><p>Product thinker focused on practical retail systems, operational clarity, and useful tools for independent businesses.</p><div className="tag-list"><span>Product strategy</span><span>Operations</span><span>Retail systems</span><span>UX</span></div></div>
       </section>
       <section className="profile-overview"><div><strong>18</strong><span>Ideas published</span></div><div><strong>7</strong><span>Ideas sold</span></div><div><strong>₹2.9L</strong><span>Value generated</span></div><div><strong>2024</strong><span>Joined ENDLESS</span></div></section>
-      <section className="content-card listing-panel"><div className="eyebrow">Published ideas</div><h2>Work worth exploring.</h2><div className="idea-grid compact-grid">{ideaListings.slice(0, 3).map((idea) => <article className="idea-card" key={idea.id}><h3>{idea.title}</h3><p className="idea-summary">A public teaser from Mark’s portfolio of practical product opportunities.</p><div className="idea-footer"><span className="stage-pill">{idea.stage}</span><Link to={`/idea/${idea.id}`} className="secondary-button small">View Idea</Link></div></article>)}</div></section>
+      <section className="content-card listing-panel"><div className="eyebrow">Published ideas</div><h2>Work worth exploring.</h2><div className="idea-grid compact-grid">{marketplaceIdeas.slice(0, 3).map((idea) => <article className="idea-card" key={idea.id}><h3>{idea.title}</h3><p className="idea-summary">A public teaser from Mark’s portfolio of practical product opportunities.</p><div className="idea-footer"><IdeaStatusBadge idea={idea} /><Link to={`/idea/${idea.id}`} className="secondary-button small">View Idea</Link></div></article>)}</div></section>
       <section className="activity-strip"><div className="eyebrow">Recent activity</div><p><strong>12 Aug 2026</strong> · Inventory Assistant received a new offer from Northstar Labs.</p><p><strong>04 Aug 2026</strong> · Smart Queue System reached early validation.</p></section>
     </main>
   )
 }
 
 function CompaniesPage() {
+  const marketplaceIdeas = useMarketplaceIdeas()
   return (
     <main className="page-shell">
       <section className="page-hero">
@@ -1228,12 +1306,12 @@ function CompaniesPage() {
           </div>
         </div>
         <div className="idea-grid compact-grid">
-          {ideaListings.map((idea) => (
+          {marketplaceIdeas.map((idea) => (
             <article className="idea-card" key={idea.id}>
               <h3>{idea.title}</h3>
               <p className="idea-summary">High-value concept with strong operational relevance and clear commercial upside.</p>
               <div className="idea-footer">
-                <span className="stage-pill">{idea.stage}</span>
+                <IdeaStatusBadge idea={idea} />
                 <Link to={`/idea/${idea.id}`} className="secondary-button small">Review</Link>
               </div>
             </article>
@@ -1333,7 +1411,18 @@ function OffersPage() {
 }
 
 function PurchasedPage() {
-  return <WorkspacePage eyebrow="Acquired ideas" title="Purchased ideas, ready when you are." text="Open acquired concepts, check access status, and manage the rights attached to every purchase." cards={[['Inventory Assistant', 'Mark R. · Purchased 12 Aug 2026', 'Transferable Rights'], ['Research Match Engine', 'Nina S. · Purchased 04 Jul 2026', 'Exclusive License']]} action="Open Purchased Idea" />
+  const { user } = useAuth()
+  const [purchases, setPurchases] = useState([])
+
+  useEffect(() => {
+    loadBuyerPurchases(user?.id).then(({ data }) => setPurchases(data ?? []))
+  }, [user?.id])
+
+  const cards = purchases.length
+    ? purchases.map((purchase) => [purchase.ideas?.title ?? 'Purchased idea', `Purchased ${new Date(purchase.purchased_at).toLocaleDateString()}`, purchase.rights_type])
+    : [['No purchases yet', 'Purchased ideas will appear here after checkout.', 'Marketplace']]
+
+  return <WorkspacePage eyebrow="Acquired ideas" title="Purchased ideas, ready when you are." text="Open acquired concepts, check access status, and manage the rights attached to every purchase." cards={cards} action="Open Purchased Idea" />
 }
 
 function LicensesPage() {
@@ -1353,7 +1442,14 @@ function TransactionsPage() {
 }
 
 function DashboardPage() {
-  return <WorkspacePage eyebrow="Creator dashboard" title="Your ideas, conversations, and earnings at a glance." text="Keep your listings moving and follow every opportunity from first view to completed transaction." cards={['Published Ideas', 'Drafts', 'Ideas Sold', 'Active Offers'].map((label, index) => [label, index === 0 ? '18 live listings' : index === 1 ? '3 awaiting review' : index === 2 ? '7 completed sales' : '4 need attention', index === 0 ? 'View ideas' : 'Open'])} action="Open" />
+  const { user } = useAuth()
+  const [counts, setCounts] = useState({ available: 0, under_offer: 0, sold: 0 })
+
+  useEffect(() => {
+    loadCreatorCounts(user?.id).then(({ data }) => { if (data) setCounts(data) })
+  }, [user?.id])
+
+  return <main className="page-shell"><section className="page-hero narrow-hero"><div className="eyebrow">Creator dashboard</div><h1>Your ideas, conversations, and earnings at a glance.</h1><p>Keep your listings moving and follow every opportunity from first view to completed transaction.</p></section><section className="dashboard-grid"><div className="mini-stat"><span>Available</span><strong>{counts.available}</strong></div><div className="mini-stat"><span>Under Offer</span><strong>{counts.under_offer}</strong></div><div className="mini-stat"><span>Sold</span><strong>{counts.sold}</strong></div></section></main>
 }
 
 function WorkspacePage({ eyebrow, title, text, cards, action }) {

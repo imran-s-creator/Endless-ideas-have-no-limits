@@ -374,6 +374,16 @@ p {
   text-transform: uppercase;
 }
 
+.sold-badge {
+  background: rgba(133, 42, 42, 0.14);
+  color: #852a2a;
+  border-color: rgba(133, 42, 42, 0.24);
+}
+
+.sold-price {
+  color: #852a2a;
+}
+
 .card-meta {
   display: flex;
   justify-content: space-between;

@@ -103,7 +103,9 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-publishable-anon-key
 ```
 
-Then run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the protected `profiles` table, row-level security policies, and a trigger that creates a profile when a user registers.
+Then run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the protected `profiles` table, marketplace `ideas` and `idea_purchases` tables, row-level security policies, the atomic `purchase_idea` function, and a trigger that creates a profile when a user registers.
+
+Marketplace idea rows should use slugs matching the frontend listing ids (for example, `inventory-assistant`). Purchases must go through `purchase_idea`; it locks the idea row, verifies the current status, records the authenticated buyer and timestamp, and changes the idea to `sold` in the same transaction.
 
 Supabase email confirmation controls whether signup creates an authenticated session immediately. Password reset links return to `/login`.
 
