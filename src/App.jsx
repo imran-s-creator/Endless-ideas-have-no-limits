@@ -1,7 +1,6 @@
 import './App.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import brandIcon from './assets/hero.png'
 import { useAuth } from './auth/useAuth.js'
 
 const navItems = [
@@ -139,7 +138,7 @@ const companyStats = [
 function BrandMark({ compact = false, light = false }) {
   return (
     <img
-      src={brandIcon}
+      src="/favicon.svg"
       alt=""
       className={`brand-mark-svg ${compact ? 'compact' : ''} ${light ? 'light' : ''}`}
       draggable="false"
