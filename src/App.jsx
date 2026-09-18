@@ -1467,7 +1467,8 @@ function ForgotPasswordPage() {
 }
 
 function SearchPage() {
-  const [query, setQuery] = useState('')
+  const [searchParams] = useSearchParams()
+  const [query, setQuery] = useState(searchParams.get('q') ?? '')
   const normalizedQuery = query.trim().toLowerCase()
   const ideaResults = ideaListings.filter((idea) => `${idea.title} ${idea.category} ${idea.creator}`.toLowerCase().includes(normalizedQuery))
   const categoryResults = categories.filter((category) => `${category[1]} ${category[2]} ${category[4].join(' ')}`.toLowerCase().includes(normalizedQuery))
