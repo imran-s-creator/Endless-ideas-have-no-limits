@@ -6,4 +6,3 @@ build/
 .env.local
 .antigravity/
 .env
-.env.local
