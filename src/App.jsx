@@ -1052,7 +1052,10 @@ function IdeaDetailPage() {
 
   useEffect(() => {
     let mounted = true
+    // The loading/error state is intentionally reset here before the async lookup resolves.
+    // oxlint-disable-next-line react/set-state-in-effect
     setIsLoading(true)
+    // oxlint-disable-next-line react/set-state-in-effect
     setLoadError('')
     loadIdeaBySlug(id).then(async ({ data, error }) => {
       if (!mounted) return
@@ -1802,7 +1805,11 @@ function SearchPage() {
   const normalizedQuery = query.trim().toLowerCase()
   const categoryResults = categories.filter((category) => `${category[1]} ${category[2]} ${category[4].join(' ')}`.toLowerCase().includes(normalizedQuery))
   useEffect(() => {
-    if (!normalizedQuery) return setIdeaResults([])
+    if (!normalizedQuery) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setIdeaResults([])
+      return
+    }
     loadIdeas({ search: normalizedQuery }).then(({ data }) => setIdeaResults(data ?? []))
   }, [normalizedQuery])
 
