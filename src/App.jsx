@@ -2,7 +2,7 @@ import './App.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from './auth/useAuth.js'
-import { createIdea, createOffer, loadBuyerPurchases, loadCreatorCounts, loadCreatorIdeas, loadIdeaBySlug, loadIdeas, loadLicenses, loadMessages, loadOffers, loadProfiles, loadProtectedIdea, loadSavedIdeas, loadTransactions, purchaseIdea, sendMessage, updateOfferStatus } from './lib/supabase.js'
+import { createIdea, createOffer, loadBuyerPurchases, loadCreatorCounts, loadCreatorIdeas, loadIdeaBySlug, loadIdeas, loadLicenses, loadMessages, loadOffers, loadProfiles, loadProtectedIdea, loadSavedIdeas, loadTransactions, purchaseIdea, sendMessage, toggleSavedIdea, updateOfferStatus } from './lib/supabase.js'
 
 const navItems = [
   { label: 'Explore', to: '/explore' },
