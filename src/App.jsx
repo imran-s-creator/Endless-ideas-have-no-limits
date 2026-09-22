@@ -416,6 +416,14 @@ function AppShell({ children }) {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  useEffect(() => {
+    // The drawer must follow browser and programmatic route changes as well as link taps.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setMenuOpen(false)
+  }, [location.pathname, location.search])
+
+  const closeMobileDrawer = () => setMenuOpen(false)
+
   return (
     <div className="app-shell">
       <header className={`topbar ${scrolled ? 'is-scrolled' : ''}`}>
@@ -465,15 +473,17 @@ function AppShell({ children }) {
               <button type="button" className="drawer-close" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)}>×</button>
             </div>
             <nav className="drawer-nav">
-              {navItems.map((item) => <NavLink key={item.to} to={item.to}>{item.label}</NavLink>)}
-              <NavLink to="/messages">Messages</NavLink>
-              <NavLink to={user?.accountType === 'creator' ? '/dashboard/creator' : '/dashboard/company'}>Dashboard</NavLink>
-              <NavLink to="/saved">Saved Ideas</NavLink>
-              <NavLink to="/settings">Settings</NavLink>
+              {navItems.map((item) => <NavLink key={item.to} to={item.to} onClick={closeMobileDrawer}>{item.label}</NavLink>)}
+              <NavLink to="/messages" onClick={closeMobileDrawer}>Messages</NavLink>
+              <NavLink to="/dashboard" onClick={closeMobileDrawer}>Dashboard</NavLink>
+              <NavLink to="/saved" onClick={closeMobileDrawer}>Saved Ideas</NavLink>
+              <NavLink to="/offers" onClick={closeMobileDrawer}>Offers</NavLink>
+              <NavLink to="/transactions" onClick={closeMobileDrawer}>Transactions</NavLink>
+              <NavLink to="/settings" onClick={closeMobileDrawer}>Settings</NavLink>
             </nav>
             <div className="drawer-actions">
-              <Link to="/submit" className="secondary-button">Submit an Idea</Link>
-              {!isAuthenticated && <Link to="/signup" className="primary-button">Get Started</Link>}
+              <Link to="/submit" className="secondary-button" onClick={closeMobileDrawer}>Submit an Idea</Link>
+              {!isAuthenticated && <Link to="/signup" className="primary-button" onClick={closeMobileDrawer}>Get Started</Link>}
             </div>
           </aside>
         </div>
