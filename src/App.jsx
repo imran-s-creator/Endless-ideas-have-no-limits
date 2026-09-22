@@ -324,6 +324,14 @@ function AppShell({ children }) {
             <span className="wordmark">ENDLESS</span>
           </div>
           <p>Ideas have no limits.</p>
+          <div className="founder" aria-label="Founder: Imran">
+            <img className="founder-photo" src="/imran-founder.png" alt="Imran" />
+            <span className="founder-divider" aria-hidden="true"></span>
+            <span className="founder-copy">
+              <span className="founder-role">Founder</span>
+              <span className="founder-name">Imran</span>
+            </span>
+          </div>
         </div>
         <nav className="footer-links" aria-label="Footer navigation">
           <Link to="/explore">Explore</Link>

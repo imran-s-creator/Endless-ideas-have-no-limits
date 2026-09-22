@@ -1352,6 +1352,48 @@ p {
   color: var(--text-soft);
 }
 
+.founder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.founder-photo {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: grayscale(100%);
+}
+
+.founder-divider {
+  width: 1px;
+  height: 30px;
+  background: var(--line-strong);
+}
+
+.founder-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.founder-role {
+  color: var(--muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.founder-name {
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
 .loading-screen {
   position: fixed;
   inset: 0;
