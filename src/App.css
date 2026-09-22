@@ -1361,9 +1361,10 @@ p {
 
 .founder-trigger {
   position: relative;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  margin: -3px;
   padding: 0;
   border-radius: 50%;
   background: transparent;
@@ -1410,8 +1411,9 @@ p {
 .founder-photo-frame {
   position: relative;
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 38px;
+  height: 38px;
+  margin: 3px;
   overflow: hidden;
   border-radius: 50%;
   background: var(--panel);
@@ -1521,7 +1523,7 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   background: rgba(18, 17, 15, 0.84);
   backdrop-filter: blur(7px);
   animation: founderLightboxIn 0.3s ease both;
@@ -1529,8 +1531,8 @@ p {
 
 .founder-lightbox-close {
   position: absolute;
-  top: 24px;
-  right: 24px;
+  top: max(24px, env(safe-area-inset-top));
+  right: max(24px, env(safe-area-inset-right));
   width: 40px;
   height: 40px;
   border: 1px solid var(--line-strong);
@@ -1551,12 +1553,46 @@ p {
 
 .founder-profile-panel {
   position: relative;
-  width: min(1120px, 100%);
+  width: min(1320px, 100%);
   max-height: min(860px, calc(100vh - 48px));
   overflow: hidden;
   background: #f3f0e9;
   color: #1b1a17;
   box-shadow: 0 22px 80px rgba(0, 0, 0, 0.3);
+}
+
+.founder-profile-graphic {
+  position: absolute;
+  top: 28px;
+  right: clamp(32px, 5vw, 82px);
+  left: clamp(32px, 5vw, 82px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(27, 26, 23, 0.38);
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+.founder-profile-graphic i {
+  position: relative;
+  height: 1px;
+  flex: 1;
+  background: rgba(200, 109, 56, 0.34);
+}
+
+.founder-profile-graphic i::after {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(200, 109, 56, 0.55);
+  border-radius: 50%;
+  background: #f3f0e9;
+  content: '';
 }
 
 .founder-profile-panel::before,
@@ -1595,7 +1631,7 @@ p {
   grid-template-columns: minmax(270px, 0.76fr) minmax(0, 1.24fr);
   gap: clamp(42px, 6vw, 92px);
   min-height: 100%;
-  padding: clamp(42px, 6vw, 82px);
+  padding: clamp(72px, 7vw, 104px) clamp(42px, 6vw, 92px) clamp(42px, 6vw, 82px);
 }
 
 .founder-profile-image-column {
@@ -1624,6 +1660,8 @@ p {
   border-radius: 50%;
   background: #e9e7e3;
   box-shadow: 0 0 0 9px rgba(27, 26, 23, 0.045);
+  width: min(100%, clamp(270px, 26vw, 390px));
+  margin: 0 auto;
 }
 
 .founder-lightbox-image-wrap::after {
@@ -1704,6 +1742,14 @@ p {
   color: #5f5b53;
   font-size: clamp(1rem, 1.5vw, 1.22rem);
   line-height: 1.55;
+}
+
+.founder-profile-role {
+  margin: -8px 0 18px;
+  color: #302e29;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .founder-profile-section {
@@ -1887,6 +1933,89 @@ p {
   to { opacity: 1; transform: scaleX(1); }
 }
 
+@media (max-width: 860px) {
+  .founder-profile-layout {
+    grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
+    gap: clamp(28px, 5vw, 54px);
+    padding-right: clamp(32px, 5vw, 58px);
+    padding-left: clamp(32px, 5vw, 58px);
+  }
+
+  .founder-profile-section,
+  .founder-profile-footer {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .founder-profile-intro h2 {
+    font-size: clamp(3rem, 8vw, 5rem);
+  }
+
+  .founder-profile-image-column::after {
+    right: clamp(-40px, -5vw, -24px);
+    width: clamp(24px, 4vw, 40px);
+  }
+}
+
+@media (max-width: 720px) {
+  .founder-profile-layout {
+    display: block;
+  }
+
+  .founder-profile-image-column {
+    position: relative;
+    width: min(58vw, 340px);
+    margin: 0 auto 42px;
+  }
+
+  .founder-profile-image-column::after {
+    top: auto;
+    right: auto;
+    bottom: -30px;
+    left: 50%;
+    width: 1px;
+    height: 22px;
+    border-top: 0;
+    border-left: 1px solid rgba(200, 109, 56, 0.48);
+  }
+
+  .founder-profile-details {
+    padding: 0;
+  }
+}
+
+@media (hover: none) {
+  .founder-trigger:hover::before {
+    border-color: transparent;
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  .founder-trigger:hover::after {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  .founder-trigger:hover .founder-photo-frame {
+    box-shadow: 0 0 0 1px var(--line-strong);
+    transform: scale(1);
+  }
+
+  .founder-trigger:hover .founder-photo-frame::after,
+  .founder-trigger:hover .founder-hover-label {
+    opacity: 0;
+  }
+
+  .founder-trigger:hover .founder-photo {
+    filter: grayscale(100%);
+  }
+
+  .founder-trigger:active .founder-photo-frame {
+    box-shadow: 0 0 0 1px rgba(227, 138, 82, 0.7);
+    transform: scale(0.98);
+  }
+}
+
 @media (max-width: 560px) {
   .founder-lightbox {
     align-items: stretch;
@@ -1894,8 +2023,8 @@ p {
   }
 
   .founder-lightbox-close {
-    top: 16px;
-    right: 16px;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
   }
 
   .founder-profile-panel {
@@ -1905,13 +2034,31 @@ p {
 
   .founder-profile-layout {
     display: block;
-    padding: 64px 24px 34px;
+    padding: calc(64px + env(safe-area-inset-top)) 24px calc(34px + env(safe-area-inset-bottom));
+  }
+
+  .founder-profile-graphic {
+    top: calc(24px + env(safe-area-inset-top));
+    right: 24px;
+    left: 24px;
+    gap: 6px;
+    font-size: 0.48rem;
+  }
+
+  .founder-profile-graphic span:nth-of-type(3),
+  .founder-profile-graphic i:nth-of-type(3) {
+    display: none;
   }
 
   .founder-profile-image-column {
     position: relative;
     width: min(72vw, 280px);
     margin: 0 auto 42px;
+  }
+
+  .founder-profile-role {
+    margin-top: -8px;
+    font-size: 0.68rem;
   }
 
   .founder-profile-image-column::after {

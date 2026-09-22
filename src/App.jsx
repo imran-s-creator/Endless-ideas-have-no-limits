@@ -196,17 +196,40 @@ function BrandMark({ compact = false, light = false }) {
 function FounderProfile() {
   const [isOpen, setIsOpen] = useState(false)
   const [pointer, setPointer] = useState({ x: 50, y: 50 })
+  const triggerRef = useRef(null)
+  const profileDialogRef = useRef(null)
 
   useEffect(() => {
     if (!isOpen) return undefined
+    const previousOverflow = document.body.style.overflow
+    const trigger = triggerRef.current
     const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setIsOpen(false)
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !profileDialogRef.current) return
+      const focusable = [...profileDialogRef.current.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])')]
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
+
     document.addEventListener('keydown', closeOnEscape)
     document.body.style.overflow = 'hidden'
+    profileDialogRef.current?.querySelector('button')?.focus()
     return () => {
       document.removeEventListener('keydown', closeOnEscape)
-      document.body.style.overflow = ''
+      document.body.style.overflow = previousOverflow
+      trigger?.focus()
     }
   }, [isOpen])
 
@@ -224,6 +247,7 @@ function FounderProfile() {
         <button
           type="button"
           className="founder-trigger"
+          ref={triggerRef}
           aria-label="View founder profile: Imran"
           style={{ '--pointer-x': `${pointer.x}%`, '--pointer-y': `${pointer.y}%` }}
           onClick={() => setIsOpen(true)}
@@ -245,9 +269,12 @@ function FounderProfile() {
       </div>
 
       {isOpen && (
-        <div className="founder-lightbox" role="dialog" aria-modal="true" aria-labelledby="founder-lightbox-title" onClick={() => setIsOpen(false)}>
+        <div className="founder-lightbox" role="dialog" aria-modal="true" aria-labelledby="founder-lightbox-title" aria-describedby="founder-lightbox-intro" ref={profileDialogRef} onClick={() => setIsOpen(false)}>
           <button type="button" className="founder-lightbox-close" aria-label="Close founder profile" onClick={() => setIsOpen(false)}>×</button>
           <div className="founder-profile-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="founder-profile-graphic" aria-hidden="true">
+              <span>IMRAN</span><i></i><span>ENDLESS</span><i></i><span>IDEAS</span><i></i><span>BUILD</span>
+            </div>
             <div className="founder-profile-scroll">
               <div className="founder-profile-layout">
                 <div className="founder-profile-image-column">
@@ -261,7 +288,8 @@ function FounderProfile() {
                   <header className="founder-profile-intro">
                     <span className="founder-lightbox-kicker">Founder / ENDLESS</span>
                     <h2 id="founder-lightbox-title">Imran</h2>
-                    <p className="founder-profile-lead">Building ENDLESS — a platform where ideas can be discovered, shared, connected, and turned into opportunities.</p>
+                    <p className="founder-profile-role">Founder &amp; Creator of ENDLESS</p>
+                    <p className="founder-profile-lead" id="founder-lightbox-intro">Building ENDLESS — a platform where ideas can be discovered, shared, connected, and turned into opportunities.</p>
                     <span className="founder-lightbox-brand">ENDLESS</span>
                   </header>
 
