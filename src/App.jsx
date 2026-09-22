@@ -193,6 +193,142 @@ function BrandMark({ compact = false, light = false }) {
   )
 }
 
+function FounderProfile() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [pointer, setPointer] = useState({ x: 50, y: 50 })
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape)
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
+  const handlePointerMove = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    setPointer({
+      x: ((event.clientX - bounds.left) / bounds.width) * 100,
+      y: ((event.clientY - bounds.top) / bounds.height) * 100,
+    })
+  }
+
+  return (
+    <>
+      <div className="founder" aria-label="Founder: Imran">
+        <button
+          type="button"
+          className="founder-trigger"
+          aria-label="View founder profile: Imran"
+          style={{ '--pointer-x': `${pointer.x}%`, '--pointer-y': `${pointer.y}%` }}
+          onClick={() => setIsOpen(true)}
+          onPointerMove={handlePointerMove}
+        >
+          <span className="founder-photo-frame">
+            <img className="founder-photo" src="/imran-founder.png" alt="" />
+          </span>
+          <span className="founder-hover-label" aria-hidden="true">
+            <span>Founder · Imran</span>
+            <span className="founder-arrow">↗</span>
+          </span>
+        </button>
+        <span className="founder-divider" aria-hidden="true"></span>
+        <span className="founder-copy">
+          <span className="founder-role">Founder</span>
+          <span className="founder-name">Imran</span>
+        </span>
+      </div>
+
+      {isOpen && (
+        <div className="founder-lightbox" role="dialog" aria-modal="true" aria-labelledby="founder-lightbox-title" onClick={() => setIsOpen(false)}>
+          <button type="button" className="founder-lightbox-close" aria-label="Close founder profile" onClick={() => setIsOpen(false)}>×</button>
+          <div className="founder-profile-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="founder-profile-scroll">
+              <div className="founder-profile-layout">
+                <div className="founder-profile-image-column">
+                  <div className="founder-lightbox-image-wrap">
+                    <img src="/imran-founder.png" alt="Imran, founder and creator of ENDLESS" />
+                  </div>
+                  <span className="founder-profile-image-note">A person behind the possibility</span>
+                </div>
+
+                <div className="founder-profile-details">
+                  <header className="founder-profile-intro">
+                    <span className="founder-lightbox-kicker">Founder / ENDLESS</span>
+                    <h2 id="founder-lightbox-title">Imran</h2>
+                    <p className="founder-profile-lead">Building ENDLESS — a platform where ideas can be discovered, shared, connected, and turned into opportunities.</p>
+                    <span className="founder-lightbox-brand">ENDLESS</span>
+                  </header>
+
+                  <section className="founder-profile-section founder-profile-about">
+                    <span className="founder-profile-index">01 / About</span>
+                    <p>Imran is the founder and creator of ENDLESS, an idea marketplace built around a simple belief: good ideas should have a place to be discovered, developed, and connected with the people who can take them further.</p>
+                  </section>
+
+                  <section className="founder-profile-section">
+                    <span className="founder-profile-index">02 / Current focus</span>
+                    <ul className="founder-focus-list">
+                      <li>Building ENDLESS</li>
+                      <li>Front-End Development</li>
+                      <li>UI/UX Design</li>
+                      <li>Graphic Design</li>
+                      <li>Creative Product Ideas</li>
+                      <li>Video &amp; Photo Editing</li>
+                      <li>Communication &amp; Public Speaking</li>
+                    </ul>
+                  </section>
+
+                  <section className="founder-profile-section founder-profile-education">
+                    <span className="founder-profile-index">03 / Education</span>
+                    <div>
+                      <strong>B.Tech Computer Science Engineering — Applied AI</strong>
+                      <span>St. Joseph University, Chennai</span>
+                      <span>2025–2029</span>
+                    </div>
+                  </section>
+
+                  <section className="founder-profile-section founder-profile-direction">
+                    <span className="founder-profile-index">04 / Personal creative direction</span>
+                    <p>Designing, building, and experimenting with ideas across technology and creative work.</p>
+                  </section>
+
+                  <section className="founder-profile-section founder-profile-endless">
+                    <span className="founder-profile-index">05 / ENDLESS</span>
+                    <p>ENDLESS is built around one simple idea:<br /><strong>Ideas have no limits.</strong></p>
+                  </section>
+
+                  <section className="founder-profile-section founder-profile-timeline-section">
+                    <span className="founder-profile-index">06 / A short timeline</span>
+                    <div className="founder-profile-timeline">
+                      <div><strong>2025</strong><span>Started university journey</span></div>
+                      <div><strong>2026</strong><span>Building creative projects<br />&amp; developing ENDLESS</span></div>
+                      <div><strong>Next</strong><span>Build <b>•</b> Connect <b>•</b> Create</span></div>
+                    </div>
+                  </section>
+
+                  <footer className="founder-profile-footer">
+                    <span className="founder-profile-index">Find / Connect</span>
+                    <nav className="founder-profile-links" aria-label="Founder links">
+                      <a href="https://github.com/imran-s-creator" target="_blank" rel="noreferrer">GitHub <span>↗</span></a>
+                      <a href="https://www.linkedin.com/in/imran-s-44b8a53ab/" target="_blank" rel="noreferrer">LinkedIn <span>↗</span></a>
+                      <a href="mailto:imranabu12007@gmail.com">Email <span>↗</span></a>
+                    </nav>
+                  </footer>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 function usePageTitle(title) {
   useEffect(() => {
     document.title = `ENDLESS — ${title}`
@@ -324,14 +460,7 @@ function AppShell({ children }) {
             <span className="wordmark">ENDLESS</span>
           </div>
           <p>Ideas have no limits.</p>
-          <div className="founder" aria-label="Founder: Imran">
-            <img className="founder-photo" src="/imran-founder.png" alt="Imran" />
-            <span className="founder-divider" aria-hidden="true"></span>
-            <span className="founder-copy">
-              <span className="founder-role">Founder</span>
-              <span className="founder-name">Imran</span>
-            </span>
-          </div>
+          <FounderProfile />
         </div>
         <nav className="footer-links" aria-label="Footer navigation">
           <Link to="/explore">Explore</Link>
