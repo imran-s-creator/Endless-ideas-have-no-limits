@@ -370,6 +370,7 @@ function AppShell({ children }) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [scrollProgress, setScrollProgress] = useState(0)
 
   const currentTitle = useMemo(() => {
     const map = {
@@ -410,7 +411,11 @@ function AppShell({ children }) {
   usePageTitle(currentTitle)
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 18)
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 18)
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight
+      setScrollProgress(scrollableHeight > 0 ? Math.min(window.scrollY / scrollableHeight, 1) : 0)
+    }
     window.addEventListener('scroll', handleScroll, { passive: true })
     handleScroll()
     return () => window.removeEventListener('scroll', handleScroll)
@@ -426,6 +431,7 @@ function AppShell({ children }) {
 
   return (
     <div className="app-shell">
+      <div className="scroll-progress" aria-hidden="true"><span style={{ transform: `scaleX(${scrollProgress})` }} /></div>
       <header className={`topbar ${scrolled ? 'is-scrolled' : ''}`}>
         <Link className="brand" to="/" aria-label="ENDLESS home">
           <BrandMark compact />
@@ -489,7 +495,7 @@ function AppShell({ children }) {
         </div>
       )}
 
-      {children}
+      <div key={location.pathname} className="page-transition">{children}</div>
 
       <footer className="site-footer">
         <div className="footer-main">
@@ -540,8 +546,25 @@ function Reveal({ children, className = '' }) {
 }
 
 function IdeaSystemGraphic() {
+  const graphicRef = useRef(null)
+
+  const handlePointerMove = (event) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const bounds = graphicRef.current?.getBoundingClientRect()
+    if (!bounds) return
+    const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2
+    const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2
+    graphicRef.current.style.setProperty('--pointer-x', `${x * 10}px`)
+    graphicRef.current.style.setProperty('--pointer-y', `${y * 10}px`)
+  }
+
+  const resetPointer = () => {
+    graphicRef.current?.style.setProperty('--pointer-x', '0px')
+    graphicRef.current?.style.setProperty('--pointer-y', '0px')
+  }
+
   return (
-    <div className="idea-system" aria-label="A visual showing an idea becoming a connection, value, and build">
+    <div ref={graphicRef} className="idea-system" onPointerMove={handlePointerMove} onPointerLeave={resetPointer} aria-label="A visual showing an idea becoming a connection, value, and build">
       <div className="system-grid"></div>
       <div className="system-orbit orbit-one"></div>
       <div className="system-orbit orbit-two"></div>
@@ -573,12 +596,17 @@ function StoryGraphic({ type }) {
 }
 
 function HomePage() {
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.sessionStorage.getItem('endless-intro-seen') !== '1'
+  })
 
   useEffect(() => {
+    if (!loading) return undefined
+    window.sessionStorage.setItem('endless-intro-seen', '1')
     const timer = window.setTimeout(() => setLoading(false), 420)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [loading])
 
   return (
     <>
@@ -587,7 +615,7 @@ function HomePage() {
         <section className="cinematic-hero">
           <div className="hero-copy premium-hero-copy">
             <div className="eyebrow hero-label">IDEAS MARKETPLACE</div>
-            <h1>An idea can become<br /><em>something bigger.</em></h1>
+            <h1><span className="kinetic-line"><span>An</span> <span>idea</span> <span>can</span> <span>become</span></span><br /><em className="kinetic-line"><span>something</span> <span>bigger.</span></em></h1>
             <p>Discover original ideas, connect with the people behind them, and find opportunities to build what comes next.</p>
             <div className="hero-actions"><Link to="/explore" className="primary-button large">Explore Ideas</Link><Link to="/submit" className="secondary-button large">Submit an Idea</Link></div>
           </div>
