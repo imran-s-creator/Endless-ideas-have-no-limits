@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from './auth/useAuth.js'
 import { createIdea, createOffer, loadBuyerPurchases, loadCreatorCounts, loadCreatorIdeas, loadIdeaBySlug, loadIdeas, loadLicenses, loadMessages, loadOffers, loadProfiles, loadProtectedIdea, loadSavedIdeas, loadTransactions, purchaseIdea, sendMessage, toggleSavedIdea, updateOfferStatus } from './lib/supabase.js'
+import GlobalLightUniverse from './components/GlobalLightUniverse.jsx'
 
 const navItems = [
   { label: 'Explore', to: '/explore' },
@@ -432,6 +433,7 @@ function AppShell({ children }) {
   return (
     <div className="app-shell">
       <div className="scroll-progress" aria-hidden="true"><span style={{ transform: `scaleX(${scrollProgress})` }} /></div>
+      <GlobalLightUniverse pathname={location.pathname} />
       <header className={`topbar ${scrolled ? 'is-scrolled' : ''}`}>
         <Link className="brand" to="/" aria-label="ENDLESS home">
           <BrandMark compact />
