@@ -100,7 +100,7 @@ ENDLESS uses Supabase Auth for real email/password sessions. Copy `.env.example`
 
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-publishable-anon-key
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 Then run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the protected `profiles` table, marketplace `ideas` and `idea_purchases` tables, row-level security policies, the atomic `purchase_idea` function, and a trigger that creates a profile when a user registers.
